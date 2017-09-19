@@ -82,56 +82,31 @@ def get_laboratories():
     if laboratories:
         return laboratories
 
-    # TODO
+    index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
+    soup = BeautifulSoup(index, 'lxml')
 
-    all_lab_links = {
-        # url: name
-    }
+    identifiers = set()
+    for anchor_link in soup.find_all('a'):
+        if anchor_link.get('href', '').startswith('data/android/physicsatschool/templateimg'):
+            href = anchor_link['href']
+            query = urlparse.urlparse(href).query
+            params = dict(urlparse.parse_qsl(query))
+            identifier = params.get('s')
+            if identifier:
+                identifiers.add(identifier)
+        
+    labs = []
+    for identifier in identifiers:
+        lab = Laboratory(name=identifier, laboratory_id=identifier, description=identifier)
+        labs.append(lab)
 
-    lab_tasks = []
-
-    session = requests.Session()
-
-    for category_url in all_category_urls:
-        text = VASCAK.cached_session.get(category_url).text
-        soup = BeautifulSoup(text, 'lxml')
-        for div_element in soup.find_all(class_='exptPadng'):
-            for a_element in div_element.find_all('a'):
-                inner_text = a_element.get_text().strip()
-                if inner_text:
-                    all_lab_links[a_element['href']] = inner_text
-                    lab_tasks.append(ObtainVascakLabDataTask(a_element['href'], session))
-    
-    run_tasks(lab_tasks)
-    
-    result = {
-        'laboratories' : [],
-        'all_links': [],
-    }
-    all_labs = []
-    for task in lab_tasks:
-        if task.result:
-            name = all_lab_links[task.laboratory_id]
-            iframe_url = task.result['url'] 
-            sim_url = task.result['sim_url']
-            
-            lab = Laboratory(name=name, laboratory_id=iframe_url, description=name, home_url=sim_url)
-            result['laboratories'].append(lab)
-            result['all_links'].append({
-                'lab': lab,
-                'name': name,
-                'base-url': task.laboratory_id,
-                'sim-url': sim_url,
-                'iframe-url': iframe_url,
-            })
-
-    VASCAK.rlms_cache['get_laboratories'] = result
-    return result
+    VASCAK.rlms_cache['get_laboratories'] = labs
+    return labs
 
 
 FORM_CREATOR = VascakFormCreator()
 
-CAPABILITIES = [ Capabilities.WIDGET, Capabilities.URL_FINDER ]
+CAPABILITIES = [ Capabilities.WIDGET, Capabilities.URL_FINDER, Capabilities.TRANSLATION_LIST ]
 
 class RLMS(BaseRLMS):
 
@@ -145,29 +120,66 @@ class RLMS(BaseRLMS):
         return CAPABILITIES 
 
     def get_laboratories(self, **kwargs):
-        return get_laboratories()['laboratories']
+        return get_laboratories()
 
     def get_base_urls(self):
         return [ 'http://www.vascak.cz' ]
 
     def get_lab_by_url(self, url):
+        query = urlparse.urlparse(url).query
+        params = dict(urlparse.parse_qsl(query))
+        identifier = params.get('s')
+        if not identifier:
+            return None
+
         laboratories = get_laboratories()
-        # check the s=<IDENTIFIER> and that's it
-        for lab in laboratories['all_links']:
-            if False: # TODO
-                return lab['lab']
+        for lab in laboratories:
+            if lab.laboratory_id == identifier:
+                return lab
+
         return None
 
+    def get_translation_list(self, laboratory_id):
+        KEY = 'languages'
+        languages = VASCAK.cache.get(KEY)
+        if languages is None:
+            languages = set([])
+            index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
+            soup = BeautifulSoup(index, 'lxml')
+            for anchor in soup.find_all('a'):
+                href = anchor.get('href') or ''
+                query = urlparse.urlparse(href).query
+                params = dict(urlparse.parse_qsl(query))
+                language = params.get('language')
+                if language:
+                    languages.add(language)
+               
+            VASCAK.cache[KEY] = list(languages)
+
+        return {
+            'supported_languages' : languages
+        }
+
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
+        locale = kwargs.get('locale', 'en')
+        if '_' in locale:
+            locale = locale.split('_')[0]
+
+        url = create_url(laboratory_id, locale)        
+
         response = {
             'reservation_id' : laboratory_id,
-            'load_url' : laboratory_id
+            'load_url' : url,
         }
         return response
 
     def load_widget(self, reservation_id, widget_name, **kwargs):
+        locale = kwargs.get('locale', 'en')
+        if '_' in locale:
+            locale = locale.split('_')[0]
+
         return {
-            'url' : reservation_id
+            'url' : create_url(reservation_id, locale)
         }
 
     def list_widgets(self, laboratory_id, **kwargs):
@@ -195,19 +207,23 @@ if DEBUG_LOW_LEVEL:
 
 vascak_blueprint = Blueprint('vascak', __name__)
 
+def create_url(identifier, locale):
+    return url_for('vascak.flash', vascak_id=identifier, lang=locale, _external=True)
+
 @vascak_blueprint.route('/flash/<vascak_id>/')
 def flash(vascak_id):
+    language = request.args.get('lang') or 'en'
     return """<html>
     <body>
 		<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="478" height="765">
-		  <param name=movie value="http://www.vascak.cz/data/android/physicsatschool/{IDENTIFIER}.swf?language=es">
+		  <param name=movie value="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}">
 		  <param name=quality value=high> 
 		  <param name=bgcolor value="#ffffff">
 		  <param name="wmode" value="transparent">   
-		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{IDENTIFIER}.swf?language=es" quality=high wmode="transparent" bgcolor="#ffffff" width="478" height="765" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
+		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}" quality=high wmode="transparent" bgcolor="#ffffff" width="478" height="765" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
 		</object>
     </body>
-    </html>""".format(vascak_id)
+    </html>""".format(identifier=vascak_id, language=language)
 
 register_blueprint(vascak_blueprint, url='vascak')
 
