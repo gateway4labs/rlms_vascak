@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup
 from flask.ext.wtf import TextField, PasswordField, Required, URL, ValidationError
 
 from labmanager.forms import AddForm
-from labmanager.rlms import register, Laboratory, CacheDisabler, LabNotFoundError
+from labmanager.rlms import register, Laboratory, CacheDisabler, LabNotFoundError, register_blueprint
 from labmanager.rlms.base import BaseRLMS, BaseFormCreator, Capabilities, Versions
 from labmanager.rlms.queue import QueueTask, run_tasks
 
@@ -152,6 +152,7 @@ class RLMS(BaseRLMS):
 
     def get_lab_by_url(self, url):
         laboratories = get_laboratories()
+        # check the s=<IDENTIFIER> and that's it
         for lab in laboratories['all_links']:
             if False: # TODO
                 return lab['lab']
@@ -192,9 +193,53 @@ if DEBUG:
 if DEBUG_LOW_LEVEL:
     print("Debug low level activated")
 
+vascak_blueprint = Blueprint('vascak', __name__)
+
+@vascak_blueprint.route('/flash/<vascak_id>/')
+def flash(vascak_id):
+    return """<html>
+    <body>
+		<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="478" height="765">
+		  <param name=movie value="http://www.vascak.cz/data/android/physicsatschool/{IDENTIFIER}.swf?language=es">
+		  <param name=quality value=high> 
+		  <param name=bgcolor value="#ffffff">
+		  <param name="wmode" value="transparent">   
+		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{IDENTIFIER}.swf?language=es" quality=high wmode="transparent" bgcolor="#ffffff" width="478" height="765" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
+		</object>
+    </body>
+    </html>""".format(vascak_id)
+
+register_blueprint(vascak_blueprint, url='vascak')
+
 sys.stdout.flush()
 
 def main():
+
+    index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
+    soup = BeautifulSoup(index, 'lxml')
+
+    identifiers = set()
+    for anchor_link in soup.find_all('a'):
+        if anchor_link.get('href', '').startswith('data/android/physicsatschool/templateimg'):
+            href = anchor_link['href']
+            query = urlparse.urlparse(href).query
+            params = dict(urlparse.parse_qsl(query))
+            identifier = params.get('s')
+            if identifier:
+                identifiers.add(identifier)
+
+    for identifier in identifiers:
+        print identifier, 
+        swf_file = [ line for line in requests.get('http://www.vascak.cz/data/android/physicsatschool/template.php?s={}&l=es&zoom=0'.format(identifier)).text.splitlines() if '<param name=movie' in line ][0].split('"')[1]
+        if swf_file != '{}.swf?language=es'.format(identifier):
+            print "*" * 20
+            print swf_file
+            print "*" * 20
+        else:
+            print "ok"
+
+    return
+
     with CacheDisabler():
         rlms = RLMS("{}")
         t0 = time.time()
