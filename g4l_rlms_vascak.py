@@ -19,6 +19,7 @@ import pprint
 import requests
 from bs4 import BeautifulSoup
 
+from flask import Blueprint, request, url_for
 from flask.ext.wtf import TextField, PasswordField, Required, URL, ValidationError
 
 from labmanager.forms import AddForm
