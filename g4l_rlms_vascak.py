@@ -112,7 +112,7 @@ def get_laboratories():
 
 FORM_CREATOR = VascakFormCreator()
 
-CAPABILITIES = [ Capabilities.WIDGET, Capabilities.URL_FINDER, Capabilities.TRANSLATION_LIST ]
+CAPABILITIES = [ Capabilities.WIDGET, Capabilities.URL_FINDER, Capabilities.TRANSLATION_LIST, Capabilities.CHECK_URLS ]
 
 class RLMS(BaseRLMS):
 
@@ -165,6 +165,9 @@ class RLMS(BaseRLMS):
         return {
             'supported_languages' : languages
         }
+
+    def get_check_urls(self, laboratory_id):
+        return [ 'http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf'.format(identifier=laboratory_id) ]
 
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
         locale = kwargs.get('locale', 'en')
