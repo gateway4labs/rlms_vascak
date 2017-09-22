@@ -216,12 +216,12 @@ def flash(vascak_id):
     language = request.args.get('lang') or 'en'
     return """<html>
     <body>
-		<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="478" height="765">
+		<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="100%" height="100%">
 		  <param name=movie value="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}">
 		  <param name=quality value=high> 
 		  <param name=bgcolor value="#ffffff">
 		  <param name="wmode" value="transparent">   
-		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}" quality=high wmode="transparent" bgcolor="#ffffff" width="478" height="765" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
+		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}" quality=high wmode="transparent" bgcolor="#ffffff" width="100%" height="100%" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
 		</object>
     </body>
     </html>""".format(identifier=vascak_id, language=language)
