@@ -86,7 +86,9 @@ def get_laboratories():
     index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
     soup = BeautifulSoup(index, 'lxml')
 
-    identifiers = set()
+    identifiers = {
+        # identifier: name
+    }
     for anchor_link in soup.find_all('a'):
         if anchor_link.get('href', '').startswith('data/android/physicsatschool/templateimg'):
             href = anchor_link['href']
@@ -94,11 +96,12 @@ def get_laboratories():
             params = dict(urlparse.parse_qsl(query))
             identifier = params.get('s')
             if identifier:
-                identifiers.add(identifier)
+                title = anchor_link.find('img').get('title') or identifier
+                identifiers[identifier] = title
         
     labs = []
-    for identifier in identifiers:
-        lab = Laboratory(name=identifier, laboratory_id=identifier, description=identifier)
+    for identifier, name in identifiers.items():
+        lab = Laboratory(name=name, laboratory_id=identifier, description=identifier)
         labs.append(lab)
 
     VASCAK.rlms_cache['get_laboratories'] = labs
