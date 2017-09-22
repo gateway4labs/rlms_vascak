@@ -96,8 +96,10 @@ def get_laboratories():
             params = dict(urlparse.parse_qsl(query))
             identifier = params.get('s')
             if identifier:
-                title = anchor_link.find('img').get('title') or identifier
-                identifiers[identifier] = title
+                images = anchor_link.find_all('img')
+                if images and identifier not in identifiers:
+                    title = images[0].get('title') or identifier
+                    identifiers[identifier] = title
         
     labs = []
     for identifier, name in identifiers.items():
@@ -246,6 +248,7 @@ def main():
             params = dict(urlparse.parse_qsl(query))
             identifier = params.get('s')
             if identifier:
+                print(anchor_link.find_all('img'))
                 identifiers.add(identifier)
 
     for identifier in identifiers:
