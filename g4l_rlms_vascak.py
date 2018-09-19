@@ -129,7 +129,7 @@ class RLMS(BaseRLMS):
         return get_laboratories()
 
     def get_base_urls(self):
-        return [ 'http://www.vascak.cz' ]
+        return [ 'http://www.vascak.cz', 'https://www.vascak.cz' ]
 
     def get_lab_by_url(self, url):
         query = urlparse.urlparse(url).query
@@ -167,7 +167,7 @@ class RLMS(BaseRLMS):
         }
 
     def get_check_urls(self, laboratory_id):
-        return [ 'http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf'.format(identifier=laboratory_id) ]
+        return [ 'https://www.vascak.cz/data/android/physicsatschool/canvas/{identifier}_Canvas.html?l=en'.format(identifier=laboratory_id) ]
 
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
         locale = kwargs.get('locale', 'en')
@@ -217,22 +217,7 @@ if DEBUG_LOW_LEVEL:
 vascak_blueprint = Blueprint('vascak', __name__)
 
 def create_url(identifier, locale):
-    return url_for('vascak.flash', vascak_id=identifier, lang=locale, _external=True)
-
-@vascak_blueprint.route('/flash/<vascak_id>/')
-def flash(vascak_id):
-    language = request.args.get('lang') or 'en'
-    return """<html>
-    <body>
-		<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=10,0,0,0" width="100%" height="100%">
-		  <param name=movie value="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}">
-		  <param name=quality value=high> 
-		  <param name=bgcolor value="#ffffff">
-		  <param name="wmode" value="transparent">   
-		  <embed src="http://www.vascak.cz/data/android/physicsatschool/{identifier}.swf?language={language}" quality=high wmode="transparent" bgcolor="#ffffff" width="100%" height="100%" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed> 
-		</object>
-    </body>
-    </html>""".format(identifier=vascak_id, language=language)
+    return "https://www.vascak.cz/data/android/physicsatschool/canvas/{identifier}_Canvas.html?l={language}".format(identifier=identifier, language=locale)
 
 register_blueprint(vascak_blueprint, url='vascak')
 
