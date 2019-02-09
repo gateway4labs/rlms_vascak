@@ -41,7 +41,7 @@ def dbg_lowlevel(msg, scope):
 
 class VascakAddForm(AddForm):
 
-    DEFAULT_URL = 'http://www.vascak.cz'
+    DEFAULT_URL = 'https://www.vascak.cz'
     DEFAULT_LOCATION = 'Czech Republic'
     DEFAULT_PUBLICLY_AVAILABLE = True
     DEFAULT_PUBLIC_IDENTIFIER = 'vascak'
@@ -83,7 +83,7 @@ def get_laboratories():
     if laboratories:
         return laboratories
 
-    index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
+    index = requests.get('https://www.vascak.cz/physicsanimations.php?l=en').text
     soup = BeautifulSoup(index, 'lxml')
 
     identifiers = {
@@ -150,7 +150,7 @@ class RLMS(BaseRLMS):
         languages = VASCAK.cache.get(KEY)
         if languages is None:
             languages = set([])
-            index = requests.get('http://www.vascak.cz/physicsanimations.php?l=en').text
+            index = requests.get('https://www.vascak.cz/physicsanimations.php?l=en').text
             soup = BeautifulSoup(index, 'lxml')
             for anchor in soup.find_all('a'):
                 href = anchor.get('href') or ''
@@ -158,6 +158,8 @@ class RLMS(BaseRLMS):
                 params = dict(urlparse.parse_qsl(query))
                 language = params.get('language')
                 if language:
+                    if language == 'ua':
+                        language = 'uk'
                     languages.add(language)
                
             VASCAK.cache[KEY] = list(languages)
@@ -217,6 +219,11 @@ if DEBUG_LOW_LEVEL:
 vascak_blueprint = Blueprint('vascak', __name__)
 
 def create_url(identifier, locale):
+    # vascak uses 'ua' to identify Ukranian language. 
+    # In reality, the standard identifier is 'uk'. 
+    # So when we see 'uk' we change it to 'ua'
+    if locale == 'uk':
+        locale = 'ua'
     return "https://www.vascak.cz/data/android/physicsatschool/canvas/{identifier}_Canvas.html?l={language}".format(identifier=identifier, language=locale)
 
 register_blueprint(vascak_blueprint, url='vascak')
@@ -241,7 +248,7 @@ def main():
 
     for identifier in identifiers:
         print identifier, 
-        swf_file = [ line for line in requests.get('http://www.vascak.cz/data/android/physicsatschool/template.php?s={}&l=es&zoom=0'.format(identifier)).text.splitlines() if '<param name=movie' in line ][0].split('"')[1]
+        swf_file = [ line for line in requests.get('https://www.vascak.cz/data/android/physicsatschool/template.php?s={}&l=es&zoom=0'.format(identifier)).text.splitlines() if '<param name=movie' in line ][0].split('"')[1]
         if swf_file != '{}.swf?language=es'.format(identifier):
             print "*" * 20
             print swf_file
